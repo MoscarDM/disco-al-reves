@@ -1,0 +1,546 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Disco al Revés</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: una sola columna estrecha. Marcador arriba, escenario con onda en el centro, historial abajo. */
+:root {
+  --bg: #E6EBEF;
+  --surface: #F5F7F9;
+  --ink: #111B24;
+  --muted: #56646F;
+  --line: #C7D0D7;
+  --accent: #D9431F;
+  --accent-ink: #FFFFFF;
+  --p1: #0B7F78;
+  --p2: #3556D4;
+  --ok: #1B7A3D;
+  --bad: #B3261E;
+  --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1620; --surface: #17222D; --ink: #E8EEF2; --muted: #95A4B0; --line: #2A3946;
+    --accent: #FF6A45; --accent-ink: #1A0A05; --p1: #38C7BC; --p2: #86A0FF; --ok: #5ED08A; --bad: #FF8A80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1620; --surface: #17222D; --ink: #E8EEF2; --muted: #95A4B0; --line: #2A3946;
+  --accent: #FF6A45; --accent-ink: #1A0A05; --p1: #38C7BC; --p2: #86A0FF; --ok: #5ED08A; --bad: #FF8A80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 16px/1.5 var(--body);
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 640px; margin: 0 auto; display: grid; gap: 18px; }
+.wrap > * { min-width: 0; }
+
+header { display: flex; align-items: center; gap: 14px; }
+.disc {
+  flex: none; width: 64px; height: 64px; border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--bg) 0 3%, var(--accent) 4% 21%, transparent 22%),
+    repeating-radial-gradient(circle, var(--ink) 0 2px, color-mix(in srgb, var(--ink) 78%, var(--bg)) 2px 4px);
+  box-shadow: 0 0 0 1px var(--line);
+}
+body[data-spin="fwd"] .disc { animation: spin 1.8s linear infinite; }
+body[data-spin="rev"] .disc { animation: spin 1.8s linear infinite reverse; }
+@keyframes spin { to { transform: rotate(360deg); } }
+h1 {
+  margin: 0; font: 800 clamp(1.9rem, 8vw, 2.6rem)/1 var(--display);
+  letter-spacing: -0.02em; text-wrap: balance;
+}
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 0.95rem; text-wrap: balance; }
+
+/* Marcador */
+.board { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.player {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px; display: grid; gap: 8px; border-top: 4px solid var(--pc);
+}
+.player.p1 { --pc: var(--p1); }
+.player.p2 { --pc: var(--p2); }
+.player .role {
+  font: 700 0.7rem/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.player.guessing .role { color: var(--pc); }
+.name {
+  width: 100%; font: 700 1rem/1.3 var(--body); color: var(--ink); background: transparent;
+  border: 0; border-bottom: 1px dashed var(--line); padding: 2px 0; border-radius: 0;
+}
+.name:focus-visible { outline: 2px solid var(--pc); outline-offset: 2px; border-bottom-color: transparent; }
+.score {
+  font: 800 3.4rem/1 var(--display); color: var(--pc); font-variant-numeric: tabular-nums;
+}
+.score-label { margin: -4px 0 0; font-size: 0.8rem; color: var(--muted); }
+.adj { display: flex; gap: 8px; }
+.adj button {
+  flex: 1; min-height: 36px; border-radius: 8px; border: 1px solid var(--line);
+  background: transparent; color: var(--ink); font: 700 1rem var(--body); cursor: pointer;
+}
+
+/* Turno y pasos */
+.turn { margin: 0; font-size: 0.95rem; color: var(--muted); }
+.turn strong { color: var(--ink); }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 14px; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; counter-reset: s; }
+.steps li {
+  counter-increment: s; font: 700 0.78rem/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); padding-bottom: 6px; border-bottom: 3px solid transparent;
+}
+.steps li::before { content: counter(s) ". "; }
+.steps li.on { color: var(--ink); border-bottom-color: var(--accent); }
+canvas#wave { width: 100%; height: 96px; display: block; border-radius: 8px; background: var(--bg); }
+
+.panel { display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+  min-height: 48px; padding: 0 18px; border-radius: 10px; border: 1.5px solid var(--ink);
+  background: transparent; color: var(--ink); font: 700 1rem var(--body); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.btn.grow { flex: 1 1 140px; }
+.btn.small { min-height: 40px; padding: 0 12px; font-size: 0.9rem; border-color: var(--line); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:focus-visible, .adj button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: currentColor; }
+.timer { font: 500 1.6rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+.bar { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.hint { margin: 0; font-size: 0.88rem; color: var(--muted); }
+label.field { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+label.field input[type="text"] {
+  min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); font: 400 1rem var(--body);
+}
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.msg { margin: 0; min-height: 1.4em; font-size: 0.9rem; color: var(--bad); }
+.msg.info { color: var(--muted); }
+
+/* Historial */
+h2 { margin: 0 0 8px; font: 800 1.1rem/1.2 var(--display); }
+.history ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.history li {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline;
+}
+.history .n { font: 500 0.8rem var(--mono); color: var(--muted); }
+.history .song { font-weight: 700; flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+.pill { font: 700 0.72rem/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
+.pill.y { background: var(--ok); color: var(--bg); }
+.pill.n { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+.empty { color: var(--muted); font-size: 0.92rem; margin: 0; }
+.reset { display: grid; gap: 10px; }
+@media (prefers-reduced-motion: reduce) { body[data-spin] .disc { animation: none; } }
+</style></head><body>
+
+<main class="wrap">
+  <header>
+    <div class="disc" aria-hidden="true"></div>
+    <div>
+      <h1>Disco al Revés</h1>
+      <p class="sub">Graba 10 segundos de una canción, escúchala al revés y adivina cuál es.</p>
+    </div>
+  </header>
+
+  <section class="board" aria-label="Marcador">
+    <div class="player p1" id="card0">
+      <span class="role" id="role0"></span>
+      <input class="name" id="name0" type="text" maxlength="20" aria-label="Nombre del jugador 1" value="Jugador 1">
+      <div class="score" id="score0" aria-live="polite">0</div>
+      <p class="score-label">canciones adivinadas</p>
+      <div class="adj">
+        <button type="button" id="minus0" aria-label="Restar un punto al jugador 1">−</button>
+        <button type="button" id="plus0" aria-label="Sumar un punto al jugador 1">+</button>
+      </div>
+    </div>
+    <div class="player p2" id="card1">
+      <span class="role" id="role1"></span>
+      <input class="name" id="name1" type="text" maxlength="20" aria-label="Nombre del jugador 2" value="Jugador 2">
+      <div class="score" id="score1" aria-live="polite">0</div>
+      <p class="score-label">canciones adivinadas</p>
+      <div class="adj">
+        <button type="button" id="minus1" aria-label="Restar un punto al jugador 2">−</button>
+        <button type="button" id="plus1" aria-label="Sumar un punto al jugador 2">+</button>
+      </div>
+    </div>
+  </section>
+
+  <p class="turn" id="turnInfo"></p>
+
+  <section class="stage" aria-label="Ronda actual">
+    <ol class="steps" id="steps">
+      <li id="st1" class="on">Grabar</li>
+      <li id="st2">Al revés</li>
+      <li id="st3">Original</li>
+    </ol>
+    <canvas id="wave" aria-label="Forma de onda del fragmento"></canvas>
+
+    <!-- 1. Grabar -->
+    <div class="panel" id="p-record">
+      <div class="timer" id="timer">0.0 / 10 s</div>
+      <div class="bar" aria-hidden="true"><i id="recBar"></i></div>
+      <div class="row">
+        <button type="button" class="btn primary grow" id="btnRec"><span class="dot"></span>Grabar 10 s</button>
+        <button type="button" class="btn grow" id="btnStopRec" hidden>Detener</button>
+        <button type="button" class="btn grow" id="btnFile">Cargar audio</button>
+      </div>
+      <input type="file" id="fileIn" accept="audio/*" hidden>
+      <p class="hint">Pon la canción en otro aparato y graba con el micrófono. También puedes cargar un archivo de audio y elegir el fragmento de 10 segundos.</p>
+    </div>
+
+    <!-- 2. Al revés -->
+    <div class="panel" id="p-reverse" hidden>
+      <label class="field" id="startWrap" hidden>
+        <span id="startLabel">Inicio del fragmento: 0:00</span>
+        <input type="range" id="startRange" min="0" max="0" step="0.5" value="0">
+      </label>
+      <div class="row">
+        <button type="button" class="btn primary grow" id="btnRev">Reproducir al revés</button>
+        <button type="button" class="btn grow" id="btnReveal">Revelar original</button>
+      </div>
+      <button type="button" class="btn small" id="btnDiscard">Descartar y grabar de nuevo</button>
+    </div>
+
+    <!-- 3. Original -->
+    <div class="panel" id="p-reveal" hidden>
+      <div class="row">
+        <button type="button" class="btn primary grow" id="btnOrig">Reproducir original</button>
+        <button type="button" class="btn grow" id="btnRev2">Al revés otra vez</button>
+      </div>
+      <label class="field">Canción (opcional, para el historial)
+        <input type="text" id="songTitle" maxlength="60" placeholder="Título o artista">
+      </label>
+      <p class="hint" id="judgeQ"></p>
+      <div class="row">
+        <button type="button" class="btn ok grow" id="btnYes">Sí, suma un punto</button>
+        <button type="button" class="btn grow" id="btnNo">No adivinó</button>
+      </div>
+    </div>
+
+    <p class="msg" id="msg" role="status"></p>
+  </section>
+
+  <section class="history" aria-label="Historial">
+    <h2>Historial</h2>
+    <ul id="log"></ul>
+    <p class="empty" id="logEmpty">Todavía no hay rondas jugadas.</p>
+  </section>
+
+  <section class="reset" aria-label="Reiniciar">
+    <div class="row">
+      <button type="button" class="btn small" id="btnReset">Reiniciar marcador</button>
+    </div>
+    <div class="row" id="confirmReset" hidden>
+      <span class="hint">¿Borrar puntos e historial?</span>
+      <button type="button" class="btn small" id="btnResetYes">Sí, borrar</button>
+      <button type="button" class="btn small" id="btnResetNo">Cancelar</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var CLIP_SECONDS = 10, BINS = 160, STORE = "disco-al-reves-v1";
+
+  var S = { names: ["Jugador 1", "Jugador 2"], scores: [0, 0], round: 1, turn: 0, log: [] };
+  try {
+    var saved = JSON.parse(localStorage.getItem(STORE) || "null");
+    if (saved && saved.scores && saved.names) S = saved;
+  } catch (e) {}
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+
+  var AC = null;
+  function ctx() {
+    if (!AC) { var C = window.AudioContext || window.webkitAudioContext; AC = new C(); }
+    if (AC.state === "suspended") AC.resume();
+    return AC;
+  }
+  function decode(ab) {
+    return new Promise(function (res, rej) { ctx().decodeAudioData(ab, res, rej); });
+  }
+
+  var phase = "record";
+  var full = null, clip = null, rev = null, pkOrig = null, pkRev = null, shown = "rev";
+  var cur = null, raf = 0;
+  var rec = null;
+
+  function nm(i) { return (S.names[i] || "").trim() || "Jugador " + (i + 1); }
+  function msg(t, info) { var m = $("msg"); m.textContent = t || ""; m.className = "msg" + (info ? " info" : ""); }
+
+  /* ---------- audio helpers ---------- */
+  function reverseBuf(b) {
+    var o = ctx().createBuffer(b.numberOfChannels, b.length, b.sampleRate);
+    for (var c = 0; c < b.numberOfChannels; c++) {
+      var s = b.getChannelData(c), d = o.getChannelData(c), n = s.length;
+      for (var i = 0; i < n; i++) d[i] = s[n - 1 - i];
+    }
+    return o;
+  }
+  function sliceBuf(b, startS, durS) {
+    var sr = b.sampleRate, s = Math.floor(startS * sr);
+    var len = Math.max(1, Math.min(b.length - s, Math.floor(durS * sr)));
+    var o = ctx().createBuffer(b.numberOfChannels, len, sr);
+    for (var c = 0; c < b.numberOfChannels; c++) o.getChannelData(c).set(b.getChannelData(c).subarray(s, s + len));
+    return o;
+  }
+  function peaks(b) {
+    var d = b.getChannelData(0), n = d.length, out = new Float32Array(BINS), step = Math.floor(n / BINS) || 1, mx = 0;
+    for (var i = 0; i < BINS; i++) {
+      var m = 0, s = i * step, e = Math.min(n, s + step);
+      for (var j = s; j < e; j++) { var v = Math.abs(d[j]); if (v > m) m = v; }
+      out[i] = m; if (m > mx) mx = m;
+    }
+    if (mx > 0) for (var k = 0; k < BINS; k++) out[k] /= mx;
+    return out;
+  }
+
+  /* ---------- waveform ---------- */
+  var cv = $("wave");
+  function drawWave(frac) {
+    var dpr = window.devicePixelRatio || 1;
+    var w = Math.max(1, Math.floor(cv.clientWidth * dpr)), h = Math.max(1, Math.floor(cv.clientHeight * dpr));
+    if (cv.width !== w) cv.width = w;
+    if (cv.height !== h) cv.height = h;
+    var g = cv.getContext("2d"), cs = getComputedStyle(document.documentElement);
+    var cAcc = cs.getPropertyValue("--accent").trim(), cLine = cs.getPropertyValue("--line").trim(), cMut = cs.getPropertyValue("--muted").trim();
+    g.clearRect(0, 0, w, h);
+    var pk = shown === "rev" ? pkRev : pkOrig;
+    var mid = h / 2;
+    if (!pk) {
+      g.fillStyle = cLine; g.fillRect(0, mid - 1, w, 2 * dpr);
+      return;
+    }
+    var bw = w / BINS;
+    for (var i = 0; i < BINS; i++) {
+      var amp = Math.max(0.04, pk[i]) * (h * 0.44);
+      g.fillStyle = (i / BINS) <= frac ? cAcc : cMut;
+      g.globalAlpha = (i / BINS) <= frac ? 1 : 0.55;
+      g.fillRect(i * bw + bw * 0.15, mid - amp, bw * 0.7, amp * 2);
+    }
+    g.globalAlpha = 1;
+    if (frac > 0 && frac < 1) { g.fillStyle = cAcc; g.fillRect(frac * w - dpr, 0, 2 * dpr, h); }
+  }
+
+  /* ---------- playback ---------- */
+  function stopPlay() {
+    if (cur) { var s = cur.s; cur = null; try { s.onended = null; s.stop(); } catch (e) {} }
+    cancelAnimationFrame(raf);
+    document.body.removeAttribute("data-spin");
+    updatePlayButtons();
+    drawWave(0);
+  }
+  function tick() {
+    if (!cur) return;
+    var f = Math.min(1, Math.max(0, (AC.currentTime - cur.t0) / cur.dur));
+    drawWave(f);
+    raf = requestAnimationFrame(tick);
+  }
+  function play(kind) {
+    if (!clip) return;
+    if (cur && cur.kind === kind) { stopPlay(); return; }
+    stopPlay();
+    var a = ctx(), buf = kind === "rev" ? rev : clip;
+    var s = a.createBufferSource();
+    s.buffer = buf; s.connect(a.destination);
+    var t0 = a.currentTime + 0.03;
+    s.start(t0);
+    cur = { s: s, kind: kind, t0: t0, dur: buf.duration };
+    shown = kind;
+    document.body.setAttribute("data-spin", kind === "rev" ? "rev" : "fwd");
+    s.onended = function () {
+      if (cur && cur.s === s) { cur = null; cancelAnimationFrame(raf); document.body.removeAttribute("data-spin"); updatePlayButtons(); drawWave(0); }
+    };
+    updatePlayButtons();
+    raf = requestAnimationFrame(tick);
+  }
+  function updatePlayButtons() {
+    var r = cur && cur.kind === "rev", o = cur && cur.kind === "orig";
+    $("btnRev").textContent = r ? "Detener" : "Reproducir al revés";
+    $("btnRev2").textContent = r ? "Detener" : "Al revés otra vez";
+    $("btnOrig").textContent = o ? "Detener" : "Reproducir original";
+  }
+
+  /* ---------- clip management ---------- */
+  function setClip(buf, fullBuf) {
+    stopPlay();
+    full = fullBuf || null;
+    clip = fullBuf ? sliceBuf(fullBuf, 0, CLIP_SECONDS) : buf;
+    refreshDerived();
+    var wrap = $("startWrap"), rng = $("startRange");
+    if (full) {
+      rng.max = String(Math.max(0, Math.floor((full.duration - CLIP_SECONDS) * 2) / 2));
+      rng.value = "0";
+      wrap.hidden = false;
+      updateStartLabel(0);
+    } else { wrap.hidden = true; }
+    phase = "reverse"; shown = "rev";
+    msg("");
+    render();
+  }
+  function refreshDerived() {
+    rev = reverseBuf(clip);
+    pkOrig = peaks(clip); pkRev = peaks(rev);
+  }
+  function fmt(t) { var m = Math.floor(t / 60), s = Math.floor(t % 60); return m + ":" + (s < 10 ? "0" : "") + s; }
+  function updateStartLabel(v) { $("startLabel").textContent = "Inicio del fragmento: " + fmt(v) + " de " + fmt(full.duration); }
+  $("startRange").addEventListener("input", function () {
+    if (!full) return;
+    var v = parseFloat(this.value) || 0;
+    stopPlay();
+    clip = sliceBuf(full, v, CLIP_SECONDS);
+    refreshDerived();
+    updateStartLabel(v);
+    drawWave(0);
+  });
+
+  /* ---------- recording ---------- */
+  function setRecUI(on) {
+    $("btnRec").hidden = on; $("btnFile").hidden = on; $("btnStopRec").hidden = !on;
+  }
+  function stopRec() { if (rec && rec.mr && rec.mr.state !== "inactive") rec.mr.stop(); }
+  async function startRec() {
+    msg("");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
+      msg("Este navegador o esta vista no permite grabar. Usa «Cargar audio» para elegir un archivo o una nota de voz."); return;
+    }
+    var stream;
+    try {
+      ctx();
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    } catch (e) {
+      msg("No se pudo usar el micrófono. Usa «Cargar audio» para elegir un archivo, o abre la copia independiente del juego para grabar directo."); return;
+    }
+    var mr;
+    try { mr = new MediaRecorder(stream); } catch (e) { stream.getTracks().forEach(function (t) { t.stop(); }); msg("No se pudo iniciar la grabación en este navegador."); return; }
+    var chunks = [];
+    rec = { mr: mr, t0: 0, timer: 0 };
+    mr.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    mr.onstop = async function () {
+      clearInterval(rec.timer);
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      setRecUI(false);
+      $("recBar").style.width = "0";
+      try {
+        var blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+        var buf = await decode(await blob.arrayBuffer());
+        setClip(buf, null);
+      } catch (e) { msg("No se pudo leer la grabación. Intenta de nuevo."); }
+      rec = null;
+    };
+    mr.start();
+    rec.t0 = performance.now();
+    setRecUI(true);
+    rec.timer = setInterval(function () {
+      var el = (performance.now() - rec.t0) / 1000;
+      $("timer").textContent = Math.min(el, CLIP_SECONDS).toFixed(1) + " / 10 s";
+      $("recBar").style.width = Math.min(100, el / CLIP_SECONDS * 100) + "%";
+      if (el >= CLIP_SECONDS) stopRec();
+    }, 100);
+  }
+  $("btnRec").addEventListener("click", startRec);
+  $("btnStopRec").addEventListener("click", stopRec);
+
+  /* ---------- load file ---------- */
+  $("btnFile").addEventListener("click", function () { $("fileIn").click(); });
+  $("fileIn").addEventListener("change", async function () {
+    var f = this.files && this.files[0];
+    this.value = "";
+    if (!f) return;
+    msg("Leyendo audio…", true);
+    try {
+      var buf = await decode(await f.arrayBuffer());
+      if (buf.duration <= CLIP_SECONDS + 0.25) setClip(buf, null); else setClip(null, buf);
+    } catch (e) { msg("No se pudo leer ese archivo. Prueba con un MP3, M4A o WAV."); }
+  });
+
+  /* ---------- phases ---------- */
+  $("btnRev").addEventListener("click", function () { play("rev"); });
+  $("btnRev2").addEventListener("click", function () { play("rev"); });
+  $("btnOrig").addEventListener("click", function () { play("orig"); });
+  $("btnReveal").addEventListener("click", function () { stopPlay(); phase = "reveal"; shown = "orig"; render(); play("orig"); });
+  $("btnDiscard").addEventListener("click", function () { resetRound(); });
+
+  function resetRound() {
+    stopPlay(); clip = rev = full = pkOrig = pkRev = null; phase = "record"; shown = "rev";
+    $("songTitle").value = ""; $("timer").textContent = "0.0 / 10 s"; msg(""); render();
+  }
+  function judge(ok) {
+    var guesser = 1 - S.turn;
+    if (ok) S.scores[guesser] += 1;
+    S.log.unshift({ n: S.round, song: $("songTitle").value.trim(), by: S.turn, guesser: guesser, ok: ok });
+    if (S.log.length > 60) S.log.length = 60;
+    S.round += 1; S.turn = 1 - S.turn;
+    save(); resetRound();
+  }
+  $("btnYes").addEventListener("click", function () { judge(true); });
+  $("btnNo").addEventListener("click", function () { judge(false); });
+
+  /* ---------- scoreboard ---------- */
+  [0, 1].forEach(function (i) {
+    $("name" + i).value = S.names[i];
+    $("name" + i).addEventListener("input", function () { S.names[i] = this.value; save(); renderText(); });
+    $("plus" + i).addEventListener("click", function () { S.scores[i] += 1; save(); renderText(); });
+    $("minus" + i).addEventListener("click", function () { S.scores[i] = Math.max(0, S.scores[i] - 1); save(); renderText(); });
+  });
+  $("btnReset").addEventListener("click", function () { $("confirmReset").hidden = false; });
+  $("btnResetNo").addEventListener("click", function () { $("confirmReset").hidden = true; });
+  $("btnResetYes").addEventListener("click", function () {
+    S.scores = [0, 0]; S.round = 1; S.turn = 0; S.log = []; save();
+    $("confirmReset").hidden = true; resetRound();
+  });
+
+  function renderText() {
+    $("score0").textContent = S.scores[0]; $("score1").textContent = S.scores[1];
+    var g = 1 - S.turn;
+    [0, 1].forEach(function (i) {
+      $("card" + i).classList.toggle("guessing", i === g);
+      $("role" + i).textContent = i === g ? "Adivina" : "Pone la canción";
+    });
+    $("turnInfo").innerHTML = "";
+    var t = $("turnInfo");
+    t.appendChild(document.createTextNode("Ronda " + S.round + ". "));
+    var a = document.createElement("strong"); a.textContent = nm(S.turn);
+    t.appendChild(a); t.appendChild(document.createTextNode(" elige y graba. "));
+    var b = document.createElement("strong"); b.textContent = nm(g);
+    t.appendChild(b); t.appendChild(document.createTextNode(" adivina."));
+    $("judgeQ").textContent = "¿Adivinó " + nm(g) + "?";
+
+    var ul = $("log"); ul.innerHTML = "";
+    S.log.forEach(function (e) {
+      var li = document.createElement("li");
+      var n = document.createElement("span"); n.className = "n"; n.textContent = "R" + e.n;
+      var s = document.createElement("span"); s.className = "song"; s.textContent = e.song || "Sin título";
+      var w = document.createElement("span"); w.className = "hint"; w.textContent = nm(e.guesser);
+      var p = document.createElement("span"); p.className = "pill " + (e.ok ? "y" : "n"); p.textContent = e.ok ? "Acertó" : "Falló";
+      li.appendChild(n); li.appendChild(s); li.appendChild(w); li.appendChild(p);
+      ul.appendChild(li);
+    });
+    $("logEmpty").hidden = S.log.length > 0;
+  }
+  function render() {
+    $("p-record").hidden = phase !== "record";
+    $("p-reverse").hidden = phase !== "reverse";
+    $("p-reveal").hidden = phase !== "reveal";
+    $("st1").classList.toggle("on", phase === "record");
+    $("st2").classList.toggle("on", phase === "reverse");
+    $("st3").classList.toggle("on", phase === "reveal");
+    renderText(); updatePlayButtons(); drawWave(0);
+  }
+  window.addEventListener("resize", function () { if (!cur) drawWave(0); });
+  render();
+})();
+</script>
+</body></html>
